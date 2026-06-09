@@ -55,7 +55,7 @@ export function FeedbackBanner({ type, message, attemptCount }: FeedbackBannerPr
           <p className="leading-relaxed">{message}</p>
           {!isCorrect && attemptCount && attemptCount > 1 && (
             <p className="text-xs text-amber-600 mt-1">
-              Attempt {attemptCount} — you've got this.
+              Attempt {attemptCount} — you&apos;ve got this.
             </p>
           )}
         </div>

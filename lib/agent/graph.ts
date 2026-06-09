@@ -115,7 +115,7 @@ function routeAfterEvaluation(
 }
 
 /** Phase 3 stub — receives per-objective scores and produces a summary. */
-async function summarize(state: GraphState): Promise<Partial<GraphState>> {
+async function summarize(_state: GraphState): Promise<Partial<GraphState>> {
   // Phase 3 will implement: aggregate attempts, compute score, generate study tips.
   return {};
 }
