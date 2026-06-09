@@ -19,7 +19,10 @@ export async function POST(req: NextRequest) {
     const response = await generateHint(input);
     return NextResponse.json({ response });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.issues }, { status: 400 });
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

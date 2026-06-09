@@ -56,7 +56,7 @@ export async function evaluateAnswer(
 
 /** LangGraph node wrapper */
 export async function evaluateAnswerLangGraphNode(
-  state: AgentState & { selectedChoiceId?: string; userId?: string }
+  state: AgentState
 ): Promise<Partial<AgentState>> {
   const { currentMCQ, lessonId, selectedChoiceId, userId = "00000000-0000-4000-8000-000000000001" } =
     state;

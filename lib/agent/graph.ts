@@ -33,6 +33,10 @@ const GraphAnnotation = Annotation.Root({
     "generating" | "awaiting_answer" | "evaluating" | "completed" | undefined
   >({ reducer: (_, b) => b }),
   lastAnswerCorrect: Annotation<boolean | undefined>({ reducer: (_, b) => b }),
+  // Carries the user's selected choice from waitForAnswer → evaluateAnswer.
+  selectedChoiceId: Annotation<string | undefined>({ reducer: (_, b) => b }),
+  // Injected at invocation time; replaced by real auth session in Phase 3.
+  userId: Annotation<string | undefined>({ reducer: (_, b) => b }),
 });
 
 type GraphState = typeof GraphAnnotation.State;
@@ -95,13 +99,11 @@ async function waitForAnswer(state: GraphState): Promise<Partial<GraphState>> {
     choices: state.currentMCQ?.choices,
   }) as { selectedChoiceId: string };
 
-  return { quizPhase: "evaluating" };
+  return { quizPhase: "evaluating", selectedChoiceId: response.selectedChoiceId };
 }
 
-async function evaluateAnswer(
-  state: GraphState & { selectedChoiceId?: string }
-): Promise<Partial<GraphState>> {
-  return evaluateAnswerLangGraphNode(state as AgentState & { selectedChoiceId?: string });
+async function evaluateAnswer(state: GraphState): Promise<Partial<GraphState>> {
+  return evaluateAnswerLangGraphNode(state as AgentState);
 }
 
 function routeAfterEvaluation(

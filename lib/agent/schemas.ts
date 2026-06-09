@@ -101,6 +101,10 @@ export const AgentStateSchema = z.object({
     .enum(["generating", "awaiting_answer", "evaluating", "completed"])
     .optional(),
   lastAnswerCorrect: z.boolean().optional(),
+  // Carries user's selected choice through the interrupt resume cycle.
+  selectedChoiceId: z.string().optional(),
+  // Injected at graph invocation time; replaced by real auth in Phase 3.
+  userId: z.string().uuid().optional(),
 });
 
 export type Difficulty = z.infer<typeof DifficultySchema>;

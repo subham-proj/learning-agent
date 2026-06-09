@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
     // Return only the client-safe MCQ (no correctChoiceId).
     return NextResponse.json({ mcq: result.clientMCQ });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.issues }, { status: 400 });
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

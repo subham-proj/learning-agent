@@ -17,11 +17,6 @@ function extractJSON(text: string): string {
   return fenced ? fenced[1].trim() : text.trim();
 }
 
-/** Validates that correctChoiceId is one of the choice ids. */
-function isValid(mcq: z.infer<typeof LLMMCQSchema>): boolean {
-  return mcq.choices.some((c) => c.id === mcq.correctChoiceId);
-}
-
 export interface GenerateMcqInput {
   lessonId: string;
   objectiveId: string;
@@ -83,13 +78,10 @@ ${JSON.stringify(schema, null, 2)}`;
           ? response.content
           : JSON.stringify(response.content);
 
+      // LLMMCQSchema.parse() throws ZodError if the JSON is malformed or
+      // correctChoiceId/choice ids are not in ["A","B","C","D"] — caught below.
       const parsed = JSON.parse(extractJSON(raw));
       const llmMcq = LLMMCQSchema.parse(parsed);
-
-      if (!isValid(llmMcq)) {
-        lastError = "correctChoiceId not in choices — retrying";
-        continue;
-      }
 
       // Persist to DB so /api/answer can look up correctChoiceId server-side.
       const supabase = createServerClient();

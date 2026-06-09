@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { AnswerSubmissionSchema } from "@/lib/agent/schemas";
 import { evaluateAnswer } from "@/lib/agent/nodes/evaluateAnswer";
 
@@ -17,7 +18,10 @@ export async function POST(req: NextRequest) {
         : { hint: result.hint }),
     });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.issues }, { status: 400 });
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
