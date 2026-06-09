@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { LessonPlanCard } from "@/components/plan/LessonPlanCard";
@@ -34,6 +35,14 @@ interface LessonSummary {
 const DEMO_USER_ID = "00000000-0000-4000-8000-000000000001";
 
 export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const [flowState, setFlowState] = useState<FlowState>("idle");
   const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
@@ -57,6 +66,8 @@ export default function DashboardPage() {
   const planAbortRef = useRef<AbortController | null>(null);
   const mcqAbortRef = useRef<AbortController | null>(null);
 
+  const searchParams = useSearchParams();
+
   // Load lesson history on mount
   useEffect(() => {
     fetch(`/api/lessons?userId=${DEMO_USER_ID}`)
@@ -77,6 +88,64 @@ export default function DashboardPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Retry weak objectives: entered via /dashboard?retry=gaps&lessonId=X from the report page.
+  // Fetches the lesson plan + report, filters to gap objectives (mastery < 80%), and starts the
+  // quiz loop with only those objectives.
+  useEffect(() => {
+    const retryMode = searchParams.get("retry");
+    const retryLessonId = searchParams.get("lessonId");
+    if (retryMode !== "gaps" || !retryLessonId) return;
+
+    async function initRetry() {
+      const [lessonRes, reportRes] = await Promise.all([
+        fetch(`/api/lessons/${retryLessonId}?userId=${DEMO_USER_ID}`),
+        fetch(`/api/report/${retryLessonId}?userId=${DEMO_USER_ID}`),
+      ]);
+
+      if (!lessonRes.ok || !reportRes.ok) return;
+
+      const [lessonData, reportData] = await Promise.all([
+        lessonRes.json() as Promise<{
+          lessonId: string;
+          lessonPlan: LessonPlan;
+          fileUrl: string;
+        }>,
+        reportRes.json() as Promise<{
+          masteryByObjective: { objectiveId: string; masteryPercent: number }[];
+        }>,
+      ]);
+
+      const gapIds = new Set(
+        reportData.masteryByObjective
+          .filter((m) => m.masteryPercent < 80)
+          .map((m) => m.objectiveId)
+      );
+
+      const filteredObjectives = lessonData.lessonPlan.objectives.filter((o) =>
+        gapIds.has(o.id)
+      );
+      if (filteredObjectives.length === 0) return;
+
+      const retryPlan: LessonPlan = { ...lessonData.lessonPlan, objectives: filteredObjectives };
+      const fakeIngest: IngestResult = {
+        lessonId: lessonData.lessonId,
+        fileUrl: lessonData.fileUrl,
+        rawText: "",
+        chunkCount: 0,
+      };
+
+      setIngestResult(fakeIngest);
+      setApprovedPlan(retryPlan);
+      setCurrentObjectiveIndex(0);
+      fetchMCQ(retryPlan, lessonData.lessonId, 0);
+    }
+
+    initRetry().catch(() => {});
+  // fetchMCQ is a stable function defined inside the component — intentionally excluded from
+  // deps to avoid re-triggering on every render. This effect fires once on mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // ── CopilotKit: expose context for sidebar AI ───────────────────────────
 

@@ -15,6 +15,9 @@ export function ScoreRing({ score, size = 160, strokeWidth = 12 }: ScoreRingProp
   const duration = 1200;
 
   useEffect(() => {
+    // Reset so the animation always starts from scratch when score changes.
+    startRef.current = null;
+
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReduced) {
       setTimeout(() => setDisplayed(score), 0);

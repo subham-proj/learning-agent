@@ -61,7 +61,7 @@ export default async function ReportPage({ params }: PageProps) {
       <div className="mx-auto max-w-2xl space-y-8">
         {/* Back link */}
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded"
         >
           <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -132,14 +132,14 @@ export default async function ReportPage({ params }: PageProps) {
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           {gapObjectiveIds.size > 0 && (
             <Link
-              href={`/?lessonId=${lessonId}&retry=gaps`}
+              href={`/dashboard?retry=gaps&lessonId=${lessonId}`}
               className="flex-1 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white text-center shadow-sm hover:bg-violet-700 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               Retry weak objectives
             </Link>
           )}
           <Link
-            href="/"
+            href="/dashboard"
             className="flex-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-5 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300 text-center hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
           >
             Start a new lesson

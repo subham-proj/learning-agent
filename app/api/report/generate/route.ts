@@ -14,16 +14,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { lessonId, userId } = BodySchema.parse(body);
 
-    // Fetch lesson plan to get objectives
+    // Fetch lesson plan + verify ownership.
+    // TODO(auth): derive userId from server session instead of request body.
     const supabase = createServerClient();
     const { data: lesson, error } = await supabase
       .from("lessons")
-      .select("lesson_plan, title")
+      .select("lesson_plan, title, user_id")
       .eq("id", lessonId)
       .single();
 
     if (error || !lesson?.lesson_plan) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    }
+
+    if (lesson.user_id !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const lessonPlan = LessonPlanSchema.parse(lesson.lesson_plan);

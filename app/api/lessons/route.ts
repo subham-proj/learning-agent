@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 
+// TODO(auth): replace userId query param with server-session userId in production.
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const raw = req.nextUrl.searchParams.get("userId");
+  const parsed = z.string().uuid().safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "userId must be a valid UUID" }, { status: 400 });
   }
+  const userId = parsed.data;
 
   const supabase = createServerClient();
 
