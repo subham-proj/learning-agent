@@ -20,10 +20,10 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className={cn(
-        "h-8 w-8 flex items-center justify-center rounded-lg transition-colors duration-150",
-        "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100",
-        "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400",
+        "h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-150",
+        "text-muted-foreground hover:text-foreground",
+        "hover:bg-accent border border-transparent hover:border-border/60",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >

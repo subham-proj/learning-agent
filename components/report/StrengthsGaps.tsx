@@ -7,7 +7,7 @@ export function StrengthsGaps({ strengths, gaps }: StrengthsGapsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {/* Strengths */}
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20 p-4 space-y-3">
+      <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-950/20 glass p-4 space-y-3">
         <div className="flex items-center gap-2">
           <svg
             aria-hidden="true"
@@ -38,7 +38,7 @@ export function StrengthsGaps({ strengths, gaps }: StrengthsGapsProps) {
       </div>
 
       {/* Gaps */}
-      <div className="rounded-xl border border-amber-100 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 p-4 space-y-3">
+      <div className="rounded-xl border border-amber-500/20 bg-amber-50/60 dark:bg-amber-950/20 glass p-4 space-y-3">
         <div className="flex items-center gap-2">
           <svg
             aria-hidden="true"

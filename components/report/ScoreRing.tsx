@@ -47,11 +47,19 @@ export function ScoreRing({ score, size = 160, strokeWidth = 12 }: ScoreRingProp
   const color =
     score >= 80 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444";
 
+  const glowColor =
+    score >= 80
+      ? "oklch(0.623 0.194 149.6 / 25%)"
+      : score >= 60
+      ? "oklch(0.75 0.175 70 / 25%)"
+      : "oklch(0.577 0.245 27.325 / 25%)";
+
   return (
     <div
       role="img"
       aria-label={`Overall score: ${score}%`}
       className="flex flex-col items-center gap-3"
+      style={{ filter: `drop-shadow(0 0 16px ${glowColor})` }}
     >
       <svg width={size} height={size} className="-rotate-90">
         {/* Track */}
@@ -62,7 +70,7 @@ export function ScoreRing({ score, size = 160, strokeWidth = 12 }: ScoreRingProp
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-zinc-100 dark:text-zinc-800"
+          className="text-muted"
         />
         {/* Progress */}
         <circle
@@ -90,7 +98,7 @@ export function ScoreRing({ score, size = 160, strokeWidth = 12 }: ScoreRingProp
           >
             {displayed}%
           </span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+          <span className="text-xs text-muted-foreground mt-1">
             Overall Score
           </span>
         </div>

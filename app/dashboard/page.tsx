@@ -7,7 +7,6 @@ import { PdfUploader } from "@/components/upload/PdfUploader";
 import { LessonPlanCard } from "@/components/plan/LessonPlanCard";
 import { MCQCard } from "@/components/quiz/MCQCard";
 import { LessonCard } from "@/components/history/LessonCard";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { type LessonPlan, type IngestResult, type MCQClient } from "@/lib/agent/schemas";
 import { cn } from "@/lib/utils";
 
@@ -394,42 +393,41 @@ function DashboardContent() {
   const isGeneratingMcq = flowState === "generating_mcq";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50/30 dark:from-zinc-950 dark:to-violet-950/10 px-4 py-12">
-      <div className="mx-auto max-w-2xl space-y-8">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">AI Learning Agent</h1>
-            <p className="text-zinc-500 dark:text-zinc-400">
-              Upload a PDF, review your lesson plan, then learn through adaptive quizzes.
-            </p>
-          </div>
-          <ThemeToggle className="mt-1 shrink-0" />
-        </div>
+    <main className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-2xl space-y-8 animate-fade-up">
 
         {/* Step indicator */}
         <div className="flex items-center gap-2 text-sm">
-          <StepDot active={flowState === "idle"} done={flowState !== "idle"} label="Upload" />
-          <StepLine />
           <StepDot
+            step={1}
+            active={flowState === "idle"}
+            done={flowState !== "idle"}
+            label="Upload"
+          />
+          <StepLine done={flowState !== "idle"} />
+          <StepDot
+            step={2}
             active={isPlanning}
             done={["hitl", "approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)}
             label="Plan"
           />
-          <StepLine />
+          <StepLine done={["hitl", "approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)} />
           <StepDot
+            step={3}
             active={flowState === "hitl"}
             done={["approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)}
             label="Review"
           />
-          <StepLine />
+          <StepLine done={["approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)} />
           <StepDot
+            step={4}
             active={flowState === "quiz" || flowState === "generating_mcq"}
             done={flowState === "summarizing" || flowState === "completed"}
             label="Learn"
           />
-          <StepLine />
+          <StepLine done={flowState === "summarizing" || flowState === "completed"} />
           <StepDot
+            step={5}
             active={flowState === "summarizing"}
             done={flowState === "completed"}
             label="Report"
@@ -438,13 +436,16 @@ function DashboardContent() {
 
         {/* Upload — visible until approved */}
         {!["approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState) && (
-          <PdfUploader userId={DEMO_USER_ID} onComplete={handleUploadComplete} />
+          <div className="animate-fade-up">
+            <PdfUploader userId={DEMO_USER_ID} onComplete={handleUploadComplete} />
+          </div>
         )}
 
         {/* Planning skeleton */}
         {isPlanning && (
-          <div className="space-y-3">
-            <p className="text-sm text-violet-600 font-medium animate-pulse">
+          <div className="space-y-3 animate-fade-up">
+            <p className="text-sm text-primary font-medium animate-pulse flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
               {flowState === "regenerating" ? "Regenerating plan…" : "Generating lesson plan…"}
             </p>
             <LessonPlanCard onApprove={() => {}} onRegenerate={() => {}} loading />
@@ -453,23 +454,25 @@ function DashboardContent() {
 
         {/* HITL approval card */}
         {flowState === "hitl" && !planError && lessonPlan && (
-          <LessonPlanCard
-            key={planVersion}
-            plan={lessonPlan}
-            onApprove={handleApprove}
-            onRegenerate={handleRegenerate}
-          />
+          <div className="animate-fade-up">
+            <LessonPlanCard
+              key={planVersion}
+              plan={lessonPlan}
+              onApprove={handleApprove}
+              onRegenerate={handleRegenerate}
+            />
+          </div>
         )}
 
         {/* Planning error */}
         {flowState === "hitl" && planError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3">
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3 animate-fade-up">
             <p className="font-semibold text-red-700 dark:text-red-400">Could not generate plan</p>
             <p className="text-sm text-red-500 dark:text-red-400">{planError}</p>
             <button
               type="button"
               onClick={handleRegenerate}
-              className="text-sm text-violet-600 underline hover:no-underline"
+              className="text-sm text-primary underline hover:no-underline"
             >
               Try again
             </button>
@@ -478,8 +481,15 @@ function DashboardContent() {
 
         {/* Approved — start learning prompt */}
         {flowState === "approved" && approvedPlan && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 p-8 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+          <div className={cn(
+            "rounded-2xl border border-emerald-500/20 glass p-8 text-center space-y-4",
+            "bg-emerald-50/60 dark:bg-emerald-950/20",
+            "shadow-[0_0_40px_oklch(0.623_0.194_149.6_/_10%)]",
+            "animate-fade-up"
+          )}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full
+                            bg-emerald-100 dark:bg-emerald-900/40
+                            ring-4 ring-emerald-500/20">
               <svg className="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -497,9 +507,9 @@ function DashboardContent() {
               type="button"
               onClick={handleStartLearning}
               className={cn(
-                "rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm",
-                "hover:bg-violet-700 active:scale-95 transition-all duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                "rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm",
+                "hover:bg-primary/90 active:scale-95 transition-all duration-150 btn-glow",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
               Start Learning →
@@ -509,20 +519,20 @@ function DashboardContent() {
 
         {/* MCQ generating skeleton */}
         {isGeneratingMcq && (
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 space-y-4 shadow-sm">
+          <div className="rounded-2xl border border-border glass bg-card/80 p-8 space-y-4 shadow-sm animate-fade-up">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.3s]" />
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" />
-              <p className="text-sm text-violet-600 font-medium ml-1">Generating question…</p>
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce" />
+              <p className="text-sm text-primary font-medium ml-1">Generating question…</p>
             </div>
             <div className="space-y-2">
-              <div className="h-4 w-3/4 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-              <div className="h-4 w-full rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-full rounded bg-muted animate-pulse" />
             </div>
             <div className="space-y-2 pt-2">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-10 w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div key={i} className="h-10 w-full rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
           </div>
@@ -530,7 +540,7 @@ function DashboardContent() {
 
         {/* MCQ error */}
         {flowState === "quiz" && mcqError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3">
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3 animate-fade-up">
             <p className="font-semibold text-red-700 dark:text-red-400">Could not generate question</p>
             <p className="text-sm text-red-500 dark:text-red-400">{mcqError}</p>
             <button
@@ -540,7 +550,7 @@ function DashboardContent() {
                   fetchMCQ(approvedPlan, ingestResult.lessonId, currentObjectiveIndex);
                 }
               }}
-              className="text-sm text-violet-600 underline hover:no-underline"
+              className="text-sm text-primary underline hover:no-underline"
             >
               Try again
             </button>
@@ -562,13 +572,17 @@ function DashboardContent() {
 
         {/* Summarizing */}
         {flowState === "summarizing" && (
-          <div className="rounded-2xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/20 p-8 text-center space-y-4">
+          <div className={cn(
+            "rounded-2xl border border-primary/20 glass p-8 text-center space-y-4",
+            "bg-primary/[0.04] dark:bg-primary/[0.08]",
+            "animate-fade-up"
+          )}>
             <div className="flex items-center justify-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.3s]" />
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
-              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-bounce" />
             </div>
-            <p className="text-sm text-violet-700 dark:text-violet-300 font-medium">
+            <p className="text-sm text-primary font-medium">
               Generating your personalized report…
             </p>
           </div>
@@ -576,15 +590,22 @@ function DashboardContent() {
 
         {/* Completed */}
         {flowState === "completed" && approvedPlan && (
-          <div className="rounded-2xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/20 p-8 text-center space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
-              <svg className="h-7 w-7 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className={cn(
+            "rounded-2xl border border-primary/20 glass p-8 text-center space-y-4",
+            "bg-primary/[0.04] dark:bg-primary/[0.08]",
+            "shadow-[0_0_40px_oklch(0.558_0.234_293.7_/_12%)]",
+            "animate-fade-up"
+          )}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full
+                            bg-primary/10 dark:bg-primary/20
+                            ring-4 ring-primary/20">
+              <svg className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
               </svg>
             </div>
             <div>
-              <p className="text-xl font-bold text-violet-900 dark:text-violet-100">Lesson complete!</p>
-              <p className="text-sm text-violet-600 dark:text-violet-400 mt-1">
+              <p className="text-xl font-bold text-foreground">Lesson complete!</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 You finished all {approvedPlan.objectives.length} objectives in &ldquo;{approvedPlan.title}&rdquo;.
               </p>
             </div>
@@ -598,9 +619,9 @@ function DashboardContent() {
                 <a
                   href={`/lessons/${ingestResult.lessonId}/report`}
                   className={cn(
-                    "rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm",
-                    "hover:bg-violet-700 active:scale-95 transition-all duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                    "rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm",
+                    "hover:bg-primary/90 active:scale-95 transition-all duration-150 btn-glow",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   )}
                 >
                   View your report →
@@ -619,9 +640,9 @@ function DashboardContent() {
                   setCurrentObjectiveIndex(0);
                 }}
                 className={cn(
-                  "rounded-xl bg-zinc-100 dark:bg-zinc-800 px-6 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300",
-                  "hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95 transition-all duration-150",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                  "rounded-xl bg-muted px-6 py-2.5 text-sm font-semibold text-foreground",
+                  "hover:bg-muted/80 active:scale-95 transition-all duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 )}
               >
                 Start new lesson
@@ -632,20 +653,20 @@ function DashboardContent() {
 
         {/* Lesson history — shown in idle state when there are past lessons */}
         {flowState === "idle" && (
-          <section aria-label="Past lessons" className="space-y-4 pt-2">
+          <section aria-label="Past lessons" className="space-y-4 pt-2 animate-fade-up animation-delay-150">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-base font-semibold text-foreground">
                 Past Lessons
               </h2>
               {historyLoading && (
-                <div className="h-4 w-4 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" aria-label="Loading" />
+                <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" aria-label="Loading" />
               )}
             </div>
 
             {!historyLoading && lessons.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center space-y-2">
-                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No lessons yet</p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+              <div className="rounded-2xl border border-dashed border-border p-8 text-center space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">No lessons yet</p>
+                <p className="text-xs text-muted-foreground/70">
                   Upload a PDF above to start your first lesson.
                 </p>
               </div>
@@ -665,19 +686,46 @@ function DashboardContent() {
   );
 }
 
-function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
+function StepDot({
+  step,
+  active,
+  done,
+  label,
+}: {
+  step: number;
+  active: boolean;
+  done: boolean;
+  label: string;
+}) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <div
         className={cn(
-          "h-2.5 w-2.5 rounded-full transition-colors",
-          done ? "bg-emerald-500" : active ? "bg-violet-500" : "bg-zinc-200 dark:bg-zinc-700"
+          "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold",
+          "transition-all duration-300 ring-2 ring-offset-2 ring-offset-background",
+          done
+            ? "bg-emerald-500 text-white ring-emerald-500/40"
+            : active
+            ? "bg-primary text-primary-foreground ring-primary/40 shadow-lg"
+            : "bg-muted text-muted-foreground ring-transparent"
         )}
-      />
+      >
+        {done ? (
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          step
+        )}
+      </div>
       <span
         className={cn(
-          "text-xs",
-          done ? "text-emerald-600 dark:text-emerald-400" : active ? "text-violet-600 dark:text-violet-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
+          "text-[11px] font-medium tracking-wide",
+          done
+            ? "text-emerald-600 dark:text-emerald-400"
+            : active
+            ? "text-primary font-semibold"
+            : "text-muted-foreground"
         )}
       >
         {label}
@@ -686,6 +734,13 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
   );
 }
 
-function StepLine() {
-  return <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800 mb-4" />;
+function StepLine({ done }: { done?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex-1 h-0.5 mb-5 rounded-full transition-all duration-500",
+        done ? "bg-emerald-500" : "bg-border"
+      )}
+    />
+  );
 }

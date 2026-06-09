@@ -47,7 +47,7 @@ export function MCQCard({
     (id: string) => {
       if (submitState === "correct") return;
       // When retrying after a wrong answer, reset to idle so the new pick
-      // renders as "selected" (violet) rather than inheriting "incorrect" (red).
+      // renders as "selected" rather than inheriting "incorrect".
       if (submitState === "incorrect") {
         setSubmitState("idle");
       }
@@ -119,10 +119,10 @@ export function MCQCard({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden"
+      className="rounded-2xl border border-border/80 glass bg-card/90 shadow-sm overflow-hidden animate-fade-up"
     >
       {/* Progress */}
-      <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 pt-5 pb-4">
+      <div className="border-b border-border/50 bg-muted/30 px-6 pt-5 pb-4">
         <ProgressBar current={objectiveIndex + 1} total={totalObjectives} />
       </div>
 
@@ -134,12 +134,12 @@ export function MCQCard({
         )}
         onAnimationEnd={() => setShake(false)}
       >
-        <p className="text-xs font-semibold uppercase tracking-widest text-violet-500 mb-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">
           Question
         </p>
         <h2
           id={headingId}
-          className="text-lg font-semibold text-zinc-900 leading-snug mb-6"
+          className="text-lg font-semibold text-foreground leading-snug mb-6"
         >
           {mcq.question}
         </h2>
@@ -187,7 +187,7 @@ export function MCQCard({
       {submitError && (
         <div
           role="alert"
-          className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700"
+          className="mx-6 mb-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive"
         >
           {submitError}
         </div>
@@ -195,7 +195,7 @@ export function MCQCard({
 
       {/* Actions */}
       <div className="flex items-center justify-between px-6 pb-6">
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           {submitState === "idle" || submitState === "submitting"
             ? "Pick an answer to continue"
             : submitState === "incorrect"
@@ -209,9 +209,9 @@ export function MCQCard({
             onClick={onAdvance}
             autoFocus
             className={cn(
-              "rounded-xl bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm",
-              "hover:bg-violet-700 active:scale-95 transition-all duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              "rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm",
+              "hover:bg-primary/90 active:scale-95 transition-all duration-150 btn-glow",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             )}
           >
             Next →
@@ -223,10 +223,10 @@ export function MCQCard({
             disabled={!selectedId || submitState === "submitting"}
             className={cn(
               "rounded-xl px-5 py-2 text-sm font-semibold transition-all duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               selectedId && submitState !== "submitting"
-                ? "bg-violet-600 text-white hover:bg-violet-700 active:scale-95 shadow-sm"
-                : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm btn-glow"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
             {submitState === "submitting" ? "Checking…" : "Submit"}

@@ -14,9 +14,9 @@ const MIN_OBJECTIVES = 5;
 const MAX_OBJECTIVES = 10;
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
-  beginner: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  intermediate: "bg-amber-100 text-amber-700 border-amber-200",
-  advanced: "bg-red-100 text-red-700 border-red-200",
+  beginner:     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+  intermediate: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+  advanced:     "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
 };
 
 interface LessonPlanCardProps {
@@ -40,7 +40,8 @@ function ObjectiveRow({
   onRemove: () => void;
 }) {
   return (
-    <li className="flex items-start gap-3 py-3 border-b border-zinc-100 last:border-0">
+    <li className="flex items-start gap-3 py-3 border-b border-border/60 last:border-0
+                   rounded-lg px-2 -mx-2 transition-colors hover:bg-muted/40">
       <div className="flex-1 min-w-0">
         {editable ? (
           <Input
@@ -51,9 +52,9 @@ function ObjectiveRow({
             placeholder="Objective title"
           />
         ) : (
-          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{objective.title}</p>
+          <p className="text-sm font-medium text-foreground">{objective.title}</p>
         )}
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{objective.description}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{objective.description}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <Badge
@@ -71,8 +72,8 @@ function ObjectiveRow({
             className={cn(
               "h-6 w-6 flex items-center justify-center rounded-md transition-colors",
               removable
-                ? "text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                : "text-zinc-200 dark:text-zinc-700 cursor-not-allowed"
+                ? "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                : "text-muted-foreground/30 cursor-not-allowed"
             )}
           >
             <X className="h-3.5 w-3.5" />
@@ -91,7 +92,7 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
 
   if (loading) {
     return (
-      <Card className="rounded-2xl shadow-sm">
+      <Card className="rounded-2xl shadow-sm glass bg-card/80 animate-fade-up">
         <CardHeader>
           <Skeleton className="h-6 w-2/3" />
           <div className="flex gap-4 mt-3">
@@ -157,7 +158,7 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
     );
   }
 
-  // Badge color: green when within range, amber near max, red at/above max
+  // Badge color: green within range, amber near max, red at max
   const countBadgeClass =
     count >= MAX_OBJECTIVES
       ? "text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950/30 dark:border-red-900"
@@ -166,29 +167,29 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
       : "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900";
 
   return (
-    <Card className="rounded-2xl shadow-sm border-zinc-200 dark:border-zinc-800">
+    <Card className="rounded-2xl shadow-sm border-border/80 glass bg-card/80 animate-fade-up">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-4">
-          <CardTitle className="text-xl text-zinc-900 dark:text-zinc-100 leading-snug">
+          <CardTitle className="text-xl font-bold text-foreground leading-snug">
             {draft.title}
           </CardTitle>
           <button
             type="button"
             onClick={() => setEditing((v) => !v)}
             aria-label={editing ? "Stop editing" : "Edit plan"}
-            className="shrink-0 text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors mt-0.5"
+            className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5"
           >
             <Pencil className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+        <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-violet-400" />
+            <Clock className="h-4 w-4 text-primary" />
             {draft.estimatedMinutes} min
           </span>
           <span className="flex items-center gap-1.5">
-            <BookOpen className="h-4 w-4 text-violet-400" />
+            <BookOpen className="h-4 w-4 text-primary" />
             <span className="capitalize">{draft.overallDifficulty}</span>
           </span>
         </div>
@@ -197,7 +198,7 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
       <CardContent>
         {/* Section header with objective count badge */}
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Learning Objectives
           </p>
           <span
@@ -233,8 +234,8 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
             className={cn(
               "w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-sm mb-5 transition-colors",
               canAdd
-                ? "border-violet-300 text-violet-600 dark:border-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-300 dark:text-zinc-600 cursor-not-allowed"
+                ? "border-primary/30 text-primary hover:bg-accent"
+                : "border-border text-muted-foreground/50 cursor-not-allowed"
             )}
             aria-disabled={!canAdd}
             title={!canAdd ? `Maximum ${MAX_OBJECTIVES} objectives reached` : "Add an objective"}
@@ -260,8 +261,8 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
             className={cn(
               "rounded-xl px-6 transition-all",
               canApprove
-                ? "bg-violet-600 hover:bg-violet-700 text-white"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground btn-glow"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
             title={!canApprove ? `At least ${MIN_OBJECTIVES} objectives required` : undefined}
           >
@@ -275,7 +276,7 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
               setEditing(false);
               onRegenerate();
             }}
-            className="rounded-xl text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-violet-300 hover:text-violet-700 dark:hover:border-violet-700 dark:hover:text-violet-400"
+            className="rounded-xl text-foreground border-border hover:border-primary/50 hover:text-primary hover:bg-accent transition-all"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Regenerate

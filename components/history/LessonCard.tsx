@@ -62,15 +62,17 @@ export function LessonCard({ id, title, status, createdAt, completedAt, overallS
     <Link
       href={href}
       className={cn(
-        "group block rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-150",
-        "border-zinc-200 dark:border-zinc-800",
-        "hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+        "group block rounded-2xl border bg-card/80 glass p-5 space-y-3",
+        "border-border/80 transition-all duration-200",
+        "hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5",
+        "hover:shadow-[0_4px_20px_oklch(0.558_0.234_293.7_/_10%)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       )}
       aria-label={`${title} — ${isCompleted ? "completed" : "in progress"}${overallScore !== null ? `, score ${overallScore}%` : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-snug group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors line-clamp-2">
+        <h3 className="text-sm font-semibold text-foreground leading-snug
+                       group-hover:text-primary transition-colors line-clamp-2">
           {title}
         </h3>
         {overallScore !== null && <ScoreBadge score={overallScore} />}
@@ -78,7 +80,7 @@ export function LessonCard({ id, title, status, createdAt, completedAt, overallS
 
       <div className="flex items-center justify-between">
         <StatusPip status={status} />
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           {completedAt ? `Completed ${formatDate(completedAt)}` : `Started ${formatDate(createdAt)}`}
         </p>
       </div>
