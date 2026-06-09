@@ -418,11 +418,11 @@ export default function DashboardPage() {
         )}
 
         {/* MCQ Card */}
-        {flowState === "quiz" && !mcqError && currentMCQ && approvedPlan && (
+        {flowState === "quiz" && !mcqError && currentMCQ && approvedPlan && ingestResult && (
           <MCQCard
             key={currentMCQ.id}
             mcq={currentMCQ}
-            lessonId={ingestResult!.lessonId}
+            lessonId={ingestResult.lessonId}
             userId={DEMO_USER_ID}
             objectiveIndex={currentObjectiveIndex}
             totalObjectives={approvedPlan.objectives.length}

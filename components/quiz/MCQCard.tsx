@@ -34,6 +34,7 @@ export function MCQCard({
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
   const [shake, setShake] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Reset when MCQ changes (new question loaded).
   useEffect(() => {
@@ -42,6 +43,7 @@ export function MCQCard({
     setFeedback(null);
     setAttemptCount(0);
     setShake(false);
+    setSubmitError(null);
   }, [mcq.id]);
 
   // Move focus to feedback banner after evaluation.
@@ -63,6 +65,7 @@ export function MCQCard({
     if (!selectedId || submitState === "submitting" || submitState === "correct") return;
 
     setSubmitState("submitting");
+    setSubmitError(null);
 
     try {
       const res = await fetch("/api/answer", {
@@ -79,6 +82,11 @@ export function MCQCard({
       const data: AnswerResult & { error?: string } = await res.json();
 
       if (!res.ok || data.error) {
+        setSubmitError(
+          typeof data.error === "string"
+            ? data.error
+            : "Something went wrong submitting your answer. Try again."
+        );
         setSubmitState("idle");
         return;
       }
@@ -97,6 +105,7 @@ export function MCQCard({
         requestAnimationFrame(() => setShake(true));
       }
     } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
       setSubmitState("idle");
     }
   }, [selectedId, submitState, mcq.id, lessonId, userId, attemptCount]);
@@ -139,8 +148,8 @@ export function MCQCard({
           {mcq.question}
         </h2>
 
-        {/* Choices */}
-        <div role="group" aria-labelledby={headingId} className="space-y-2.5">
+        {/* Choices — radiogroup so screen readers announce "1 of 4", "2 of 4" etc. */}
+        <div role="radiogroup" aria-labelledby={headingId} className="space-y-2.5">
           {mcq.choices.map((choice, i) => (
             <ChoiceButton
               key={choice.id}
@@ -171,6 +180,16 @@ export function MCQCard({
             }
             attemptCount={attemptCount}
           />
+        </div>
+      )}
+
+      {/* Submit error */}
+      {submitError && (
+        <div
+          role="alert"
+          className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700"
+        >
+          {submitError}
         </div>
       )}
 

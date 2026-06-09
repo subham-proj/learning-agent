@@ -33,11 +33,16 @@ export function ChoiceButton({
   disabled,
   onClick,
 }: ChoiceButtonProps) {
+  const isChecked = state === "selected" || state === "correct" || state === "incorrect";
+
   return (
     <button
       type="button"
       id={`choice-${id}`}
-      aria-pressed={state === "selected" || state === "correct" || state === "incorrect"}
+      // role="radio" + aria-checked is the correct pattern for single-select
+      // option groups. aria-pressed is for toggle buttons (on/off), not MCQs.
+      role="radio"
+      aria-checked={isChecked}
       disabled={disabled}
       onClick={onClick}
       className={cn(

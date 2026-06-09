@@ -11,7 +11,7 @@ export function FeedbackBanner({ type, message, attemptCount }: FeedbackBannerPr
 
   return (
     <div
-      role="alert"
+      role="status"
       aria-live="polite"
       className={cn(
         "rounded-xl border px-4 py-3 text-sm transition-all duration-300",
