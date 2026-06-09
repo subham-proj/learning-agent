@@ -36,16 +36,6 @@ export function MCQCard({
   const [shake, setShake] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset when MCQ changes (new question loaded).
-  useEffect(() => {
-    setSelectedId(null);
-    setSubmitState("idle");
-    setFeedback(null);
-    setAttemptCount(0);
-    setShake(false);
-    setSubmitError(null);
-  }, [mcq.id]);
-
   // Move focus to feedback banner after evaluation.
   useEffect(() => {
     if (submitState === "correct" || submitState === "incorrect") {

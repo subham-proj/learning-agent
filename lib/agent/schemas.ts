@@ -67,7 +67,7 @@ export const AttemptSchema = z.object({
 
 export const AnswerSubmissionSchema = z.object({
   mcqId: z.string().uuid(),
-  selectedChoiceId: z.string(),
+  selectedChoiceId: z.string().min(1).max(10),
   lessonId: z.string().uuid(),
   userId: z.string().uuid(),
 });

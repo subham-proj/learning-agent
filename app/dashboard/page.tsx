@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { LessonPlanCard } from "@/components/plan/LessonPlanCard";
@@ -198,8 +198,7 @@ export default function DashboardPage() {
 
   // ── Quiz flow ───────────────────────────────────────────────────────────
 
-  const fetchMCQ = useCallback(
-    async (plan: LessonPlan, lessonId: string, objectiveIdx: number) => {
+  async function fetchMCQ(plan: LessonPlan, lessonId: string, objectiveIdx: number) {
       const objective = plan.objectives[objectiveIdx];
       if (!objective) {
         setFlowState("completed");
@@ -236,9 +235,7 @@ export default function DashboardPage() {
         setMcqError(err instanceof Error ? err.message : "MCQ generation failed");
         setFlowState("quiz");
       }
-    },
-    []
-  );
+    }
 
   function handleStartLearning() {
     if (!approvedPlan || !ingestResult) return;
@@ -329,6 +326,7 @@ export default function DashboardPage() {
             <p className="font-semibold text-red-700">Could not generate plan</p>
             <p className="text-sm text-red-500">{planError}</p>
             <button
+              type="button"
               onClick={handleRegenerate}
               className="text-sm text-violet-600 underline hover:no-underline"
             >
@@ -405,6 +403,7 @@ export default function DashboardPage() {
             <p className="font-semibold text-red-700">Could not generate question</p>
             <p className="text-sm text-red-500">{mcqError}</p>
             <button
+              type="button"
               onClick={() => {
                 if (approvedPlan && ingestResult) {
                   fetchMCQ(approvedPlan, ingestResult.lessonId, currentObjectiveIndex);

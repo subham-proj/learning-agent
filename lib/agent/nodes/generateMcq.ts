@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createGroqClient } from "@/lib/groq/client";
-import { MCQSchema, AgentState, type MCQ } from "@/lib/agent/schemas";
+import { MCQSchema, MCQClientSchema, AgentState, type MCQ, type MCQClient } from "@/lib/agent/schemas";
 import { retrieveChunks } from "@/lib/rag/retrieve";
 import { createServerClient } from "@/lib/supabase/server";
 
@@ -11,6 +11,9 @@ const LLMMCQSchema = MCQSchema.omit({ id: true, sourceChunkIds: true }).extend({
   ).length(4),
   correctChoiceId: z.enum(["A", "B", "C", "D"]),
 });
+
+// Derived once at module load — LLMMCQSchema is a static constant.
+const LLM_MCQ_JSON_SCHEMA = z.toJSONSchema(LLMMCQSchema);
 
 function extractJSON(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -26,7 +29,7 @@ export interface GenerateMcqInput {
 
 export async function generateMcqNode(
   input: GenerateMcqInput
-): Promise<{ mcq: MCQ; clientMCQ: Omit<MCQ, "correctChoiceId"> } | { error: string }> {
+): Promise<{ mcq: MCQ; clientMCQ: MCQClient } | { error: string }> {
   const { lessonId, objectiveId, objectiveTitle, objectiveDescription } = input;
 
   const chunks = await retrieveChunks(
@@ -42,8 +45,9 @@ export async function generateMcqNode(
 
   const sourceChunkIds = chunks.map((c) => c.id);
 
+  // Hoist client and LLM outside the retry loop — no need to re-instantiate.
+  const supabase = createServerClient();
   const llm = createGroqClient();
-  const schema = z.toJSONSchema(LLMMCQSchema);
 
   const systemPrompt = `You are an expert MCQ designer for educational content.
 Generate one multiple-choice question (MCQ) grounded in the provided source text.
@@ -62,7 +66,7 @@ Source content:
 ${contextText}
 
 JSON Schema:
-${JSON.stringify(schema, null, 2)}`;
+${JSON.stringify(LLM_MCQ_JSON_SCHEMA, null, 2)}`;
 
   let lastError = "MCQ generation failed after retries";
 
@@ -84,7 +88,6 @@ ${JSON.stringify(schema, null, 2)}`;
       const llmMcq = LLMMCQSchema.parse(parsed);
 
       // Persist to DB so /api/answer can look up correctChoiceId server-side.
-      const supabase = createServerClient();
       const { data, error } = await supabase
         .from("mcqs")
         .insert({
@@ -116,8 +119,8 @@ ${JSON.stringify(schema, null, 2)}`;
         sourceChunkIds,
       };
 
-      const { correctChoiceId: _, ...clientMCQ } = mcq;
-      void _;
+      // Use MCQClientSchema.parse to strip correctChoiceId and validate shape.
+      const clientMCQ = MCQClientSchema.parse(mcq);
 
       return { mcq, clientMCQ };
     } catch (err) {

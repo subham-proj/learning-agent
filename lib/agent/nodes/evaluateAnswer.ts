@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server";
-import { AgentState, AnswerResult } from "@/lib/agent/schemas";
+import { AgentState, AnswerResult, AttemptSchema } from "@/lib/agent/schemas";
 
 export interface EvaluateAnswerInput {
   mcqId: string;
@@ -35,6 +35,17 @@ export async function evaluateAnswer(
     .eq("user_id", userId);
 
   const attemptNumber = (count ?? 0) + 1;
+
+  // Validate the attempt shape before insert.
+  AttemptSchema.omit({ id: true, createdAt: true }).parse({
+    mcqId,
+    lessonId,
+    objectiveId: mcq.objective_id,
+    userId,
+    selectedChoiceId,
+    correct,
+    attemptNumber,
+  });
 
   // Persist attempt.
   await supabase.from("attempts").insert({
