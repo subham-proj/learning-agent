@@ -46,7 +46,13 @@ export function MCQCard({
   const handleSelect = useCallback(
     (id: string) => {
       if (submitState === "correct") return;
+      // When retrying after a wrong answer, reset to idle so the new pick
+      // renders as "selected" (violet) rather than inheriting "incorrect" (red).
+      if (submitState === "incorrect") {
+        setSubmitState("idle");
+      }
       setSelectedId(id);
+      setSubmitError(null);
     },
     [submitState]
   );
@@ -154,8 +160,12 @@ export function MCQCard({
         </div>
       </div>
 
-      {/* Feedback */}
-      {feedback && (submitState === "correct" || submitState === "incorrect") && (
+      {/* Feedback — also shown in idle when retrying after a wrong answer */}
+      {feedback && (
+        submitState === "correct" ||
+        submitState === "incorrect" ||
+        (submitState === "idle" && !feedback.correct)
+      ) && (
         <div
           ref={feedbackRef}
           tabIndex={-1}
