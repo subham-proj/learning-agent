@@ -11,7 +11,7 @@ export const ObjectiveSchema = z.object({
 
 export const LessonPlanSchema = z.object({
   title: z.string(),
-  objectives: z.array(ObjectiveSchema).min(1).max(10),
+  objectives: z.array(ObjectiveSchema).min(5).max(10),
   overallDifficulty: DifficultySchema,
   estimatedMinutes: z.number().int().positive(),
 });

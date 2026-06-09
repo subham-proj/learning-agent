@@ -1,9 +1,11 @@
 import { createGroqClient } from "@/lib/groq/client";
 import { LessonPlanSchema, AgentState } from "@/lib/agent/schemas";
+import { friendlyGroqError } from "@/lib/groq/errors";
 import { z } from "zod";
 
 const SYSTEM_PROMPT = `You are an expert instructional designer.
 Given raw text extracted from a PDF, produce a structured lesson plan.
+You MUST include between 5 and 10 learning objectives — never fewer than 5.
 Return ONLY valid JSON matching the schema — no markdown fences, no explanation.`;
 
 /** Strip ```json … ``` fences the model sometimes adds despite instructions. */
@@ -28,13 +30,18 @@ export async function planLessonNode(state: AgentState): Promise<Partial<AgentSt
   const llm = createGroqClient();
   const schema = z.toJSONSchema(LessonPlanSchema);
 
-  const response = await llm.invoke([
-    { role: "system", content: SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: `JSON Schema:\n${JSON.stringify(schema, null, 2)}\n\nPDF Text (first 8000 chars):\n${rawText.slice(0, 8000)}`,
-    },
-  ]);
+  let response;
+  try {
+    response = await llm.invoke([
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `JSON Schema:\n${JSON.stringify(schema, null, 2)}\n\nPDF Text (first 8000 chars):\n${rawText.slice(0, 8000)}`,
+      },
+    ]);
+  } catch (err) {
+    return { error: friendlyGroqError(err) };
+  }
 
   const raw =
     typeof response.content === "string"
