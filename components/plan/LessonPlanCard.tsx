@@ -1,0 +1,164 @@
+"use client";
+
+import { useState } from "react";
+import { Check, RefreshCw, Clock, BookOpen, Pencil } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { LessonPlan, Objective, Difficulty } from "@/lib/agent/schemas";
+import { cn } from "@/lib/utils";
+
+const DIFFICULTY_STYLES: Record<Difficulty, string> = {
+  beginner: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  intermediate: "bg-amber-100 text-amber-700 border-amber-200",
+  advanced: "bg-red-100 text-red-700 border-red-200",
+};
+
+interface LessonPlanCardProps {
+  plan?: LessonPlan;
+  onApprove: (plan: LessonPlan) => void;
+  onRegenerate: () => void;
+  loading?: boolean;
+}
+
+function ObjectiveRow({
+  objective,
+  editable,
+  onChange,
+}: {
+  objective: Objective;
+  editable: boolean;
+  onChange: (updated: Objective) => void;
+}) {
+  return (
+    <li className="flex items-start gap-3 py-3 border-b border-zinc-100 last:border-0">
+      <div className="flex-1 min-w-0">
+        {editable ? (
+          <Input
+            value={objective.title}
+            onChange={(e) => onChange({ ...objective, title: e.target.value })}
+            className="text-sm font-medium mb-1"
+            aria-label="Objective title"
+          />
+        ) : (
+          <p className="text-sm font-medium text-zinc-800">{objective.title}</p>
+        )}
+        <p className="text-xs text-zinc-500 mt-0.5">{objective.description}</p>
+      </div>
+      <Badge
+        variant="outline"
+        className={cn("shrink-0 capitalize text-xs", DIFFICULTY_STYLES[objective.difficulty])}
+      >
+        {objective.difficulty}
+      </Badge>
+    </li>
+  );
+}
+
+export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: LessonPlanCardProps) {
+  // `key={planVersion}` in the parent remounts this component on each new plan,
+  // so useState(plan) always initializes from the freshly received plan.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<LessonPlan | null>(plan ?? null);
+
+  if (loading) {
+    return (
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader>
+          <Skeleton className="h-6 w-2/3" />
+          <div className="flex gap-4 mt-3">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-3 w-32 mb-4" />
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-lg" />
+          ))}
+          <div className="flex gap-3 pt-2">
+            <Skeleton className="h-10 w-36 rounded-xl" />
+            <Skeleton className="h-10 w-28 rounded-xl" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!plan || !draft) return null;
+
+  function updateObjective(index: number, updated: Objective) {
+    setDraft((prev) =>
+      prev
+        ? { ...prev, objectives: prev.objectives.map((o, i) => (i === index ? updated : o)) }
+        : prev
+    );
+  }
+
+  return (
+    <Card className="rounded-2xl shadow-sm border-zinc-200">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-4">
+          <CardTitle className="text-xl text-zinc-900 leading-snug">{draft.title}</CardTitle>
+          <button
+            onClick={() => setEditing((v) => !v)}
+            aria-label={editing ? "Stop editing" : "Edit plan"}
+            className="shrink-0 text-zinc-400 hover:text-violet-600 transition-colors mt-0.5"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mt-3 text-sm text-zinc-500">
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4 text-violet-400" />
+            {draft.estimatedMinutes} min
+          </span>
+          <span className="flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4 text-violet-400" />
+            <span className="capitalize">{draft.overallDifficulty}</span>
+          </span>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+          Learning Objectives
+        </p>
+        <ul className="mb-6">
+          {draft.objectives.map((obj, i) => (
+            <ObjectiveRow
+              key={obj.id}
+              objective={obj}
+              editable={editing}
+              onChange={(updated) => updateObjective(i, updated)}
+            />
+          ))}
+        </ul>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={() => onApprove(editing ? draft : plan)}
+            className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-6"
+          >
+            <Check className="h-4 w-4 mr-2" />
+            {editing ? "Approve Edits" : "Approve Plan"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditing(false);
+              onRegenerate();
+            }}
+            className="rounded-xl text-zinc-600 border-zinc-200 hover:border-violet-300 hover:text-violet-700"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Regenerate
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
