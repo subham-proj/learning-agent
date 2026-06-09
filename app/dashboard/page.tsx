@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { LessonPlanCard } from "@/components/plan/LessonPlanCard";
 import { MCQCard } from "@/components/quiz/MCQCard";
+import { LessonCard } from "@/components/history/LessonCard";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { type LessonPlan, type IngestResult, type MCQClient } from "@/lib/agent/schemas";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +18,17 @@ type FlowState =
   | "approved"
   | "quiz"
   | "generating_mcq"
+  | "summarizing"
   | "completed";
+
+interface LessonSummary {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  overallScore: number | null;
+}
 
 /** Replace with real auth session userId in production */
 const DEMO_USER_ID = "00000000-0000-4000-8000-000000000001";
@@ -34,8 +46,37 @@ export default function DashboardPage() {
   const [currentMCQ, setCurrentMCQ] = useState<MCQClient | null>(null);
   const [mcqError, setMcqError] = useState<string | null>(null);
 
+  // Report state
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  // Lesson history
+  const [lessons, setLessons] = useState<LessonSummary[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
   const planAbortRef = useRef<AbortController | null>(null);
   const mcqAbortRef = useRef<AbortController | null>(null);
+
+  // Load lesson history on mount
+  useEffect(() => {
+    fetch(`/api/lessons?userId=${DEMO_USER_ID}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.lessons) setLessons(data.lessons as LessonSummary[]);
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }, []);
+
+  // Refresh history when a lesson completes
+  const refreshHistory = useCallback(() => {
+    fetch(`/api/lessons?userId=${DEMO_USER_ID}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.lessons) setLessons(data.lessons as LessonSummary[]);
+      })
+      .catch(() => {});
+  }, []);
 
   // ── CopilotKit: expose context for sidebar AI ───────────────────────────
 
@@ -199,43 +240,67 @@ export default function DashboardPage() {
   // ── Quiz flow ───────────────────────────────────────────────────────────
 
   async function fetchMCQ(plan: LessonPlan, lessonId: string, objectiveIdx: number) {
-      const objective = plan.objectives[objectiveIdx];
-      if (!objective) {
-        setFlowState("completed");
-        return;
-      }
-
-      mcqAbortRef.current?.abort();
-      mcqAbortRef.current = new AbortController();
-      setMcqError(null);
-      setCurrentMCQ(null);
-      setFlowState("generating_mcq");
-
-      try {
-        const res = await fetch("/api/mcq/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lessonId,
-            objectiveId: objective.id,
-            objectiveTitle: objective.title,
-            objectiveDescription: objective.description,
-          }),
-          signal: mcqAbortRef.current.signal,
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error ?? "MCQ generation failed");
-
-        setCurrentMCQ(data.mcq as MCQClient);
-        setFlowState("quiz");
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setMcqError(err instanceof Error ? err.message : "MCQ generation failed");
-        setFlowState("quiz");
-      }
+    const objective = plan.objectives[objectiveIdx];
+    if (!objective) {
+      await triggerSummarize(lessonId);
+      return;
     }
+
+    mcqAbortRef.current?.abort();
+    mcqAbortRef.current = new AbortController();
+    setMcqError(null);
+    setCurrentMCQ(null);
+    setFlowState("generating_mcq");
+
+    try {
+      const res = await fetch("/api/mcq/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId,
+          objectiveId: objective.id,
+          objectiveTitle: objective.title,
+          objectiveDescription: objective.description,
+        }),
+        signal: mcqAbortRef.current.signal,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "MCQ generation failed");
+
+      setCurrentMCQ(data.mcq as MCQClient);
+      setFlowState("quiz");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setMcqError(err instanceof Error ? err.message : "MCQ generation failed");
+      setFlowState("quiz");
+    }
+  }
+
+  async function triggerSummarize(lessonId: string) {
+    setFlowState("summarizing");
+    setReportError(null);
+
+    try {
+      const res = await fetch("/api/report/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId, userId: DEMO_USER_ID }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "Report generation failed");
+
+      setReportId((data as { reportId: string }).reportId);
+      refreshHistory();
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : "Report generation failed");
+    } finally {
+      setFlowState("completed");
+    }
+  }
 
   function handleStartLearning() {
     if (!approvedPlan || !ingestResult) return;
@@ -248,7 +313,7 @@ export default function DashboardPage() {
     const nextIndex = currentObjectiveIndex + 1;
 
     if (nextIndex >= approvedPlan.objectives.length) {
-      setFlowState("completed");
+      triggerSummarize(ingestResult.lessonId);
       return;
     }
 
@@ -260,14 +325,17 @@ export default function DashboardPage() {
   const isGeneratingMcq = flowState === "generating_mcq";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50/30 px-4 py-16">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50/30 dark:from-zinc-950 dark:to-violet-950/10 px-4 py-12">
       <div className="mx-auto max-w-2xl space-y-8">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-zinc-900">AI Learning Agent</h1>
-          <p className="text-zinc-500">
-            Upload a PDF, review your lesson plan, then learn through adaptive quizzes.
-          </p>
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">AI Learning Agent</h1>
+            <p className="text-zinc-500 dark:text-zinc-400">
+              Upload a PDF, review your lesson plan, then learn through adaptive quizzes.
+            </p>
+          </div>
+          <ThemeToggle className="mt-1 shrink-0" />
         </div>
 
         {/* Step indicator */}
@@ -276,27 +344,31 @@ export default function DashboardPage() {
           <StepLine />
           <StepDot
             active={isPlanning}
-            done={
-              ["hitl", "approved", "quiz", "generating_mcq", "completed"].includes(flowState)
-            }
+            done={["hitl", "approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)}
             label="Plan"
           />
           <StepLine />
           <StepDot
             active={flowState === "hitl"}
-            done={["approved", "quiz", "generating_mcq", "completed"].includes(flowState)}
+            done={["approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState)}
             label="Review"
           />
           <StepLine />
           <StepDot
             active={flowState === "quiz" || flowState === "generating_mcq"}
-            done={flowState === "completed"}
+            done={flowState === "summarizing" || flowState === "completed"}
             label="Learn"
+          />
+          <StepLine />
+          <StepDot
+            active={flowState === "summarizing"}
+            done={flowState === "completed"}
+            label="Report"
           />
         </div>
 
         {/* Upload — visible until approved */}
-        {!["approved", "quiz", "generating_mcq", "completed"].includes(flowState) && (
+        {!["approved", "quiz", "generating_mcq", "summarizing", "completed"].includes(flowState) && (
           <PdfUploader userId={DEMO_USER_ID} onComplete={handleUploadComplete} />
         )}
 
@@ -322,9 +394,9 @@ export default function DashboardPage() {
 
         {/* Planning error */}
         {flowState === "hitl" && planError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 space-y-3">
-            <p className="font-semibold text-red-700">Could not generate plan</p>
-            <p className="text-sm text-red-500">{planError}</p>
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3">
+            <p className="font-semibold text-red-700 dark:text-red-400">Could not generate plan</p>
+            <p className="text-sm text-red-500 dark:text-red-400">{planError}</p>
             <button
               type="button"
               onClick={handleRegenerate}
@@ -337,33 +409,23 @@ export default function DashboardPage() {
 
         {/* Approved — start learning prompt */}
         {flowState === "approved" && approvedPlan && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-              <svg
-                className="h-6 w-6 text-emerald-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 p-8 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+              <svg className="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div>
-              <p className="text-lg font-semibold text-emerald-800">Lesson plan approved!</p>
-              <p className="text-sm text-emerald-600 mt-1">
+              <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-300">Lesson plan approved!</p>
+              <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
                 &ldquo;{approvedPlan.title}&rdquo;
               </p>
-              <p className="text-xs text-emerald-500 mt-1">
-                {approvedPlan.objectives.length} objectives · {approvedPlan.estimatedMinutes}{" "}
-                min · {approvedPlan.overallDifficulty}
+              <p className="text-xs text-emerald-500 dark:text-emerald-500 mt-1">
+                {approvedPlan.objectives.length} objectives · {approvedPlan.estimatedMinutes} min · {approvedPlan.overallDifficulty}
               </p>
             </div>
             <button
+              type="button"
               onClick={handleStartLearning}
               className={cn(
                 "rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm",
@@ -378,7 +440,7 @@ export default function DashboardPage() {
 
         {/* MCQ generating skeleton */}
         {isGeneratingMcq && (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 space-y-4 shadow-sm">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 space-y-4 shadow-sm">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.3s]" />
               <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
@@ -386,12 +448,12 @@ export default function DashboardPage() {
               <p className="text-sm text-violet-600 font-medium ml-1">Generating question…</p>
             </div>
             <div className="space-y-2">
-              <div className="h-4 w-3/4 rounded bg-zinc-100 animate-pulse" />
-              <div className="h-4 w-full rounded bg-zinc-100 animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="h-4 w-full rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
             </div>
             <div className="space-y-2 pt-2">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-10 w-full rounded-xl bg-zinc-100 animate-pulse" />
+                <div key={i} className="h-10 w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
               ))}
             </div>
           </div>
@@ -399,9 +461,9 @@ export default function DashboardPage() {
 
         {/* MCQ error */}
         {flowState === "quiz" && mcqError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 space-y-3">
-            <p className="font-semibold text-red-700">Could not generate question</p>
-            <p className="text-sm text-red-500">{mcqError}</p>
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 p-6 space-y-3">
+            <p className="font-semibold text-red-700 dark:text-red-400">Could not generate question</p>
+            <p className="text-sm text-red-500 dark:text-red-400">{mcqError}</p>
             <button
               type="button"
               onClick={() => {
@@ -429,35 +491,105 @@ export default function DashboardPage() {
           />
         )}
 
+        {/* Summarizing */}
+        {flowState === "summarizing" && (
+          <div className="rounded-2xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/20 p-8 text-center space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.3s]" />
+              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
+              <div className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" />
+            </div>
+            <p className="text-sm text-violet-700 dark:text-violet-300 font-medium">
+              Generating your personalized report…
+            </p>
+          </div>
+        )}
+
         {/* Completed */}
         {flowState === "completed" && approvedPlan && (
-          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-8 text-center space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100">
-              <svg
-                className="h-7 w-7 text-violet-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                />
+          <div className="rounded-2xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/20 p-8 text-center space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
+              <svg className="h-7 w-7 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
               </svg>
             </div>
             <div>
-              <p className="text-xl font-bold text-violet-900">Lesson complete!</p>
-              <p className="text-sm text-violet-600 mt-1">
-                You finished all {approvedPlan.objectives.length} objectives in &ldquo;
-                {approvedPlan.title}&rdquo;.
-              </p>
-              <p className="text-xs text-violet-400 mt-2">
-                Phase 3 summary &amp; scoring coming soon.
+              <p className="text-xl font-bold text-violet-900 dark:text-violet-100">Lesson complete!</p>
+              <p className="text-sm text-violet-600 dark:text-violet-400 mt-1">
+                You finished all {approvedPlan.objectives.length} objectives in &ldquo;{approvedPlan.title}&rdquo;.
               </p>
             </div>
+
+            {reportError && (
+              <p className="text-xs text-red-500 dark:text-red-400">{reportError}</p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {reportId && ingestResult && (
+                <a
+                  href={`/lessons/${ingestResult.lessonId}/report`}
+                  className={cn(
+                    "rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm",
+                    "hover:bg-violet-700 active:scale-95 transition-all duration-150",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                  )}
+                >
+                  View your report →
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFlowState("idle");
+                  setIngestResult(null);
+                  setLessonPlan(null);
+                  setApprovedPlan(null);
+                  setCurrentMCQ(null);
+                  setReportId(null);
+                  setReportError(null);
+                  setCurrentObjectiveIndex(0);
+                }}
+                className={cn(
+                  "rounded-xl bg-zinc-100 dark:bg-zinc-800 px-6 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300",
+                  "hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95 transition-all duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                )}
+              >
+                Start new lesson
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Lesson history — shown in idle state when there are past lessons */}
+        {flowState === "idle" && (
+          <section aria-label="Past lessons" className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                Past Lessons
+              </h2>
+              {historyLoading && (
+                <div className="h-4 w-4 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" aria-label="Loading" />
+              )}
+            </div>
+
+            {!historyLoading && lessons.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center space-y-2">
+                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No lessons yet</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  Upload a PDF above to start your first lesson.
+                </p>
+              </div>
+            )}
+
+            {lessons.length > 0 && (
+              <div className="space-y-3">
+                {lessons.map((lesson) => (
+                  <LessonCard key={lesson.id} {...lesson} />
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </main>
@@ -470,13 +602,13 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
       <div
         className={cn(
           "h-2.5 w-2.5 rounded-full transition-colors",
-          done ? "bg-emerald-500" : active ? "bg-violet-500" : "bg-zinc-200"
+          done ? "bg-emerald-500" : active ? "bg-violet-500" : "bg-zinc-200 dark:bg-zinc-700"
         )}
       />
       <span
         className={cn(
           "text-xs",
-          done ? "text-emerald-600" : active ? "text-violet-600 font-medium" : "text-zinc-400"
+          done ? "text-emerald-600 dark:text-emerald-400" : active ? "text-violet-600 dark:text-violet-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
         )}
       >
         {label}
@@ -486,5 +618,5 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
 }
 
 function StepLine() {
-  return <div className="flex-1 h-px bg-zinc-200 mb-4" />;
+  return <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800 mb-4" />;
 }

@@ -11,6 +11,7 @@ import { ingestNode } from "@/lib/agent/nodes/ingest";
 import { planLessonNode } from "@/lib/agent/nodes/plan";
 import { generateMcqLangGraphNode } from "@/lib/agent/nodes/generateMcq";
 import { evaluateAnswerLangGraphNode } from "@/lib/agent/nodes/evaluateAnswer";
+import { summarizeLangGraphNode } from "@/lib/agent/nodes/summarize";
 
 const GraphAnnotation = Annotation.Root({
   lessonId: Annotation<string | undefined>({ reducer: (_, b) => b }),
@@ -114,10 +115,8 @@ function routeAfterEvaluation(
   return "waitForAnswer";
 }
 
-/** Phase 3 stub — receives per-objective scores and produces a summary. */
-async function summarize(_state: GraphState): Promise<Partial<GraphState>> {
-  // Phase 3 will implement: aggregate attempts, compute score, generate study tips.
-  return {};
+async function summarize(state: GraphState): Promise<Partial<GraphState>> {
+  return summarizeLangGraphNode(state as AgentState);
 }
 
 // ─── Graph assembly ───────────────────────────────────────────────────────────

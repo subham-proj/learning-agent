@@ -119,3 +119,44 @@ export type MCQClient = z.infer<typeof MCQClientSchema>;
 export type Attempt = z.infer<typeof AttemptSchema>;
 export type AnswerSubmission = z.infer<typeof AnswerSubmissionSchema>;
 export type AnswerResult = z.infer<typeof AnswerResultSchema>;
+
+// ─── Phase 3: Report ─────────────────────────────────────────────────────────
+
+export const MasteryByObjectiveSchema = z.object({
+  objectiveId: z.string(),
+  objectiveTitle: z.string(),
+  totalAttempts: z.number().int().nonnegative(),
+  correctAttempts: z.number().int().nonnegative(),
+  masteryPercent: z.number().min(0).max(100),
+  firstTryCorrect: z.boolean(),
+});
+
+export const StudyTipSchema = z.object({
+  tip: z.string(),
+  objectiveId: z.string().optional(),
+  sourceChunk: z.string().optional(),
+});
+
+export const ReportSchema = z.object({
+  id: z.string().uuid(),
+  lessonId: z.string().uuid(),
+  userId: z.string().uuid(),
+  overallScore: z.number().min(0).max(100),
+  masteryByObjective: z.array(MasteryByObjectiveSchema),
+  strengths: z.array(z.string()),
+  gaps: z.array(z.string()),
+  studyTips: z.array(StudyTipSchema),
+  createdAt: z.string(),
+});
+
+/** LLM output schema — without DB-generated fields */
+export const LLMReportOutputSchema = z.object({
+  strengths: z.array(z.string()).min(1).max(5),
+  gaps: z.array(z.string()).min(0).max(5),
+  studyTips: z.array(StudyTipSchema).min(1).max(6),
+});
+
+export type MasteryByObjective = z.infer<typeof MasteryByObjectiveSchema>;
+export type StudyTip = z.infer<typeof StudyTipSchema>;
+export type Report = z.infer<typeof ReportSchema>;
+export type LLMReportOutput = z.infer<typeof LLMReportOutputSchema>;
