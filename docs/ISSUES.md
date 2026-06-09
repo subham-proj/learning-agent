@@ -49,6 +49,36 @@
 **Fix:** Changed `z.string()` to `z.string().uuid()` in `RequestSchema`.
 **File:** `app/api/agent/plan/route.ts:8`
 
+### Groq rate limit errors shown as raw JSON in the UI
+**Symptom:** When the Groq daily token quota was exhausted, the UI displayed the raw error string: `{ "error": "429 {\"error\":{\"message\":\"Rate limit reached...\",\"code\":\"rate_limit_exceeded\"}}" }` — entirely opaque to the user.
+**Root cause:** API routes caught the Groq error and returned `err.message` directly. `err.message` from `@langchain/groq` on a 429 is the raw HTTP response body including the status code prefix. MCQ generation's retry loop also needlessly retried a daily token exhaustion (no wait could fix it).
+**Fix:**
+- Created `lib/groq/errors.ts` with `friendlyGroqError()` (extracts "try again in Xm Ys" from the message, returns human-readable string) and `isRateLimitError()` (detects 429/rate_limit_exceeded).
+- All LLM call sites use `friendlyGroqError` for the error message.
+- Routes return HTTP 429 (not 500) when `isRateLimitError` is true.
+- MCQ retry loop calls `break` immediately on rate limit — no point retrying.
+**Files:** `lib/groq/errors.ts` (new), `lib/agent/nodes/plan.ts`, `lib/agent/nodes/generateMcq.ts`, `app/api/agent/plan/route.ts`, `app/api/hint/route.ts`
+
+### No authorization on Phase 3 API routes (IDOR risk)
+**Symptom:** Any caller supplying an arbitrary `lessonId` could read or generate reports for lessons they don't own. Service role client bypasses RLS, so Supabase itself provided no protection.
+**Root cause:** Phase 3 routes accepted `userId` from request body/query without UUID format validation and without checking that the lesson belongs to that user.
+**Fix:**
+- `userId` validated as `z.string().uuid()` everywhere; returns 400 on malformed input.
+- `/api/report/generate`: selects `user_id` from the lesson row; returns 403 if it doesn't match the supplied `userId`.
+- `/api/report/[lessonId]`: ownership check on fetch; returns 403 on mismatch.
+- `/api/lessons/[lessonId]`: new route with ownership check.
+**Files:** `app/api/report/generate/route.ts`, `app/api/report/[lessonId]/route.ts`, `app/api/lessons/route.ts`, `app/api/lessons/[lessonId]/route.ts`
+
+---
+
+## Animation / UI
+
+### `ScoreRing` count-up animation restarts stale on second view
+**Symptom:** Navigating away from the report page and back caused the score ring to count from an incorrect mid-animation value instead of 0.
+**Root cause:** `startRef.current` stored the `Date.now()` timestamp from the previous animation run and was never cleared between renders. On the next mount, the `requestAnimationFrame` loop read a stale past timestamp and computed an inflated elapsed time.
+**Fix:** Added `startRef.current = null;` at the very top of the `useEffect` before the animation starts. The `if (!startRef.current)` check then correctly treats each mount as a fresh animation.
+**File:** `components/report/ScoreRing.tsx`
+
 ---
 
 ## Routing / Next.js
@@ -61,6 +91,18 @@
 ### Stale `.next` cache after route group deletion
 **Symptom:** TypeScript complained about missing old file after deleting the route group.
 **Fix:** `rm -rf .next` before type check.
+
+### `useSearchParams()` crash without Suspense boundary
+**Symptom:** Build error: _"useSearchParams() should be wrapped in a suspense boundary at page "/dashboard"."_ The report page's retry CTA linked to `/dashboard?retry=gaps&lessonId=X`, but the dashboard page called `useSearchParams()` directly without a Suspense boundary.
+**Root cause:** Next.js App Router requires any component that calls `useSearchParams()` to be inside a `<Suspense>` boundary; otherwise the entire route is statically rendered without access to search params.
+**Fix:** Split `dashboard/page.tsx` into `DashboardPage` (Suspense shell) and `DashboardContent` (the real component using `useSearchParams`). The `initRetry` effect reads `?retry=gaps&lessonId=X`, fetches lesson + report data in `Promise.all`, filters gap objectives, and restarts the MCQ loop.
+**File:** `app/dashboard/page.tsx`
+
+### Dead retry CTA on report page
+**Symptom:** "Retry weak objectives" button linked to `/?retry=gaps&lessonId=X`. The dashboard never read those query params, so clicking the button just loaded a fresh dashboard with no retry behaviour.
+**Root cause:** URL pointed to wrong path (`/` instead of `/dashboard`), and even after the path was corrected, `DashboardContent` had no `initRetry` logic consuming the params.
+**Fix:** URL changed to `/dashboard?retry=gaps&lessonId=X`. Full `initRetry` flow implemented: fetches lesson plan and report, filters objectives whose `id` appears in `report.gaps`, constructs a minimal `fakeIngest`, and calls `fetchMCQ` to enter the quiz loop. Requires the Suspense split above.
+**Files:** `app/lessons/[lessonId]/report/page.tsx`, `app/dashboard/page.tsx`
 
 ---
 
@@ -103,13 +145,18 @@
 
 ---
 
-## Known Limitations (Phase 1)
+## Known Limitations
 
-| Issue | Status | Phase |
-|---|---|---|
-| LangGraph graph built but not invoked | Intentional — serverless constraint | Phase 2 |
-| No real auth — demo UUID hardcoded | Known, flagged in comment | Phase 2 |
-| `raw_text` truncated to 8000 chars for LLM | Rough limit, no sentence boundary | Phase 2 |
-| No embeddings on chunks | Column exists, not populated | Phase 2 |
-| Approved plan stored only in React state | Not persisted to DB | Phase 2 |
-| RLS policies never enforced | Service role bypasses RLS | Phase 2 |
+| Issue | Status |
+|---|---|
+| No real auth — demo UUID hardcoded | Known; swap to `@supabase/ssr` session JWT in production |
+| `raw_text` truncated to 8000 chars for LLM | Rough limit, no sentence boundary |
+| LangGraph graph wired but nodes called directly | Serverless constraint — intentional |
+| In-progress lesson cards link to dashboard, not mid-quiz resume | Resume flow not yet implemented |
+| `ScoreRing` negative margin layout hack for label overlay | Low-impact cosmetic debt |
+| Hardcoded hex colors in `ScoreRing` (dark-mode unaware) | Will drift if palette changes |
+| `setTimeout` workaround in `theme-toggle.tsx` for lint rule | Code smell; safe but brittle |
+| `timerRef` not cleaned up in reduced-motion path of `ObjectiveBreakdown` | Minor leak |
+| `lessons.update` failure silently ignored in `summarizeNode` | Low blast-radius; add alerting later |
+| Report page casts Supabase JSONB without Zod validation | Add `ReportSchema.parse()` on read in production |
+| Redundant DB index `reports_lesson_id_idx` alongside unique index | Drop one in next migration |
