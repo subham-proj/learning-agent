@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateHint } from "@/lib/agent/nodes/hint";
+import { friendlyGroqError, isRateLimitError } from "@/lib/groq/errors";
 
 const RequestSchema = z.object({
   lessonId: z.string().uuid(),
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues }, { status: 400 });
     }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = isRateLimitError(err) ? 429 : 500;
+    return NextResponse.json({ error: friendlyGroqError(err) }, { status });
   }
 }

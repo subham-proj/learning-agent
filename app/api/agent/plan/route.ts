@@ -3,6 +3,7 @@ import { z } from "zod";
 import { LessonPlanSchema } from "@/lib/agent/schemas";
 import { planLessonNode } from "@/lib/agent/nodes/plan";
 import { createServerClient } from "@/lib/supabase/server";
+import { friendlyGroqError, isRateLimitError } from "@/lib/groq/errors";
 
 const RequestSchema = z.object({
   lessonId: z.string().uuid(),
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ lessonPlan: plan });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = isRateLimitError(err) ? 429 : 500;
+    return NextResponse.json({ error: friendlyGroqError(err) }, { status });
   }
 }

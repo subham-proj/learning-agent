@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createGroqClient } from "@/lib/groq/client";
+import { friendlyGroqError, isRateLimitError } from "@/lib/groq/errors";
 import { MCQSchema, MCQClientSchema, AgentState, type MCQ, type MCQClient } from "@/lib/agent/schemas";
 import { retrieveChunks } from "@/lib/rag/retrieve";
 import { createServerClient } from "@/lib/supabase/server";
@@ -124,7 +125,9 @@ ${JSON.stringify(LLM_MCQ_JSON_SCHEMA, null, 2)}`;
 
       return { mcq, clientMCQ };
     } catch (err) {
-      lastError = err instanceof Error ? err.message : "Unknown error";
+      lastError = friendlyGroqError(err);
+      // Rate limits won't resolve on retry — bail out immediately.
+      if (isRateLimitError(err)) break;
     }
   }
 
