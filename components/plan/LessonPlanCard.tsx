@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, RefreshCw, Clock, BookOpen, Pencil, Plus, X } from "lucide-react";
+import { Check, RefreshCw, Clock, BookOpen, Pencil, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,33 +118,12 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
 
   const count = draft.objectives.length;
   const canApprove = count >= MIN_OBJECTIVES;
-  const canAdd = count < MAX_OBJECTIVES;
   const canRemove = count > MIN_OBJECTIVES;
 
   function updateObjective(index: number, updated: Objective) {
     setDraft((prev) =>
       prev
         ? { ...prev, objectives: prev.objectives.map((o, i) => (i === index ? updated : o)) }
-        : prev
-    );
-  }
-
-  function addObjective() {
-    if (!canAdd) return;
-    setDraft((prev) =>
-      prev
-        ? {
-            ...prev,
-            objectives: [
-              ...prev.objectives,
-              {
-                id: crypto.randomUUID(),
-                title: "",
-                description: "",
-                difficulty: prev.objectives.at(-1)?.difficulty ?? "beginner",
-              },
-            ],
-          }
         : prev
     );
   }
@@ -224,26 +203,6 @@ export function LessonPlanCard({ plan, onApprove, onRegenerate, loading }: Lesso
             />
           ))}
         </ul>
-
-        {/* Add objective — only in edit mode */}
-        {editing && (
-          <button
-            type="button"
-            onClick={addObjective}
-            disabled={!canAdd}
-            className={cn(
-              "w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-sm mb-5 transition-colors",
-              canAdd
-                ? "border-primary/30 text-primary hover:bg-accent"
-                : "border-border text-muted-foreground/50 cursor-not-allowed"
-            )}
-            aria-disabled={!canAdd}
-            title={!canAdd ? `Maximum ${MAX_OBJECTIVES} objectives reached` : "Add an objective"}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {canAdd ? "Add objective" : `Max ${MAX_OBJECTIVES} reached`}
-          </button>
-        )}
 
         {/* Min-objectives warning */}
         {!canApprove && (
